@@ -17,7 +17,7 @@ from reportlab.lib import colors
 from celery import Celery
 
 from flask_debugtoolbar import DebugToolbarExtension
-
+from pprint import pprint
 data_to_db = []
 page_data    = []
 job_state = False
@@ -52,7 +52,7 @@ def getConfig():
             return True
         except:
             return False
-    print(config)
+    # print(config)
 
 def database():
     global database
@@ -81,6 +81,7 @@ def loadMain():
     if conf:
         pass
         page_data.append(config)
+        # pprint(page_data)
         # cursor = database.cursor()
         # cursor.execute("SELECT * FROM jobs")
         # page_data.append(cursor.fetchall())  
