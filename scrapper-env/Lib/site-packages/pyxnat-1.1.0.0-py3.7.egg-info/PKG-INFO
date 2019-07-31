@@ -1,0 +1,29 @@
+Metadata-Version: 1.1
+Name: pyxnat
+Version: 1.1.0.0
+Summary: XNAT in Python
+Home-page: http://packages.python.org/pyxnat/
+Author: Yannick Schwartz
+Author-email: yannick.schwartz@cea.fr
+License: BSD
+Description: 
+        PyXNAT
+        ======
+        
+        pyxnat provides an API to access data on XNAT (see http://xnat.org)
+        servers.
+        
+        Visit http://packages.python.org/pyxnat for more information.
+        
+Platform: any
+Classifier: Development Status :: 4 - Beta
+Classifier: Environment :: Console
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: Science/Research
+Classifier: Intended Audience :: Education
+Classifier: License :: OSI Approved :: BSD License
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python
+Classifier: Topic :: Scientific/Engineering
+Classifier: Topic :: Utilities
+Classifier: Topic :: Internet :: WWW/HTTP

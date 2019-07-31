@@ -27,6 +27,8 @@ ALLOWED_EXTENSIONS = set(['pdf', 'jpg'])
 
 app = Flask(__name__)
 app.config['CELERY_BROKER_URL'] = 'pyamqp://guest@localhost//'
+app.config['task_acks_late'] = True
+app.config['worker_prefetch_multiplier'] = 1
 # app.config['BROKER_TRANSPORT_OPTIONS'] = {'visibility_timeout': 3600*10}  # 10 hours
 # app.config['CELERY_RESULT_BACKEND'] = 'rpc://'
 
@@ -36,6 +38,8 @@ celery.conf.update(app.config)
 
 app.config['UPLOAD_PATH'] = UPLOAD_PATH
 app.config['SECRET_KEY'] = 'secret'
+# app.config['task_acks_late'] = True
+# app.config['worker_prefetch_multiplier'] = 1
 # app.config['CORS_HEADERS'] = 'Content-Type'
 CORS(app)
 # cors = CORS(app, resources={r"/jobs": {"origins": "http://127.0.0.1:5000"}})
@@ -555,8 +559,8 @@ def progress():
 @app.route('/processfiles')
 def processfiles():
     cursor = database.cursor()
-    # cursor.execute("UPDATE jobs SET status = 0 WHERE `status` = 1")
-    # database.commit()
+    cursor.execute("UPDATE jobs SET status = 0 WHERE `status` = 1")
+    database.commit()
                   
     cursor.execute("SELECT * FROM `jobs` WHERE status=0")
     jobs = list(cursor.fetchall())
@@ -571,6 +575,8 @@ def processfiles():
 @app.route('/purge')
 # @celery.task
 def purge_queue():
+    from Celery import app
+    app.control.purge()
     # from app.celery import app
                   
     # cursor.execute("SELECT * FROM `jobs` WHERE status=0")
@@ -582,7 +588,7 @@ def purge_queue():
     # else :
     # process.purge()
     # from app.celery import app
-    app.control.purge()
+    # app.control.purge()
     cursor = database.cursor()
     cursor.execute("UPDATE jobs SET status = 0 WHERE `status` = 1")
     database.commit()
