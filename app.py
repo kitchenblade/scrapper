@@ -578,6 +578,8 @@ def processfiles():
 
 @app.route('/retryfailed')
 def retryfailed():
+    # from celery import app
+    celery.control.purge()
     cursor = database.cursor()
     cursor.execute("UPDATE jobs SET status = 0 WHERE `status` = 2")
     database.commit()
