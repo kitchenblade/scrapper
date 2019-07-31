@@ -18,6 +18,7 @@ from celery import Celery
 
 from flask_debugtoolbar import DebugToolbarExtension
 from pprint import pprint
+
 data_to_db = []
 page_data    = []
 job_state = False
@@ -368,7 +369,7 @@ def clear_database():
     # cursor.execute('TRUNCATE TABLE jobs;')
     # database.commit()
     flash('Database cleared')
-    pprint.pprint(sql)
+    # pprint.pprint(sql)
     return loadMain()
 
 @app.route('/getdata')
@@ -465,6 +466,8 @@ def progress():
         can = canvas.Canvas(bookDetails["stationno"]+".pdf")
         PAGE_HEIGHT=defaultPageSize[1]; PAGE_WIDTH=defaultPageSize[0]
         path_to_pic = 'static/pics/'
+        if not os.path.exists(path_to_pic):
+            os.makedirs(path_to_pic)
         
         can.setProducer("Creator")
         can.setFont("Helvetica-Bold", 25)
@@ -571,6 +574,22 @@ def processfiles():
         flash('( '+str(len(jobs))+' ) tasks loaded successfully !!!')
     else :
         flash('No new tasks found !!!')
+    return loadMain()
+
+@app.route('/retryfailed')
+def retryfailed():
+    cursor = database.cursor()
+    cursor.execute("UPDATE jobs SET status = 0 WHERE `status` = 2")
+    database.commit()
+                  
+    cursor.execute("SELECT * FROM `jobs` WHERE status=0")
+    jobs = list(cursor.fetchall())
+    database.commit()
+    if len(jobs) >0:
+        process.delay(jobs)    
+        flash('( '+str(len(jobs))+' ) tasks reset successfully !!!')
+    else :
+        flash('No failed tasks found !!!')
     return loadMain()
 
 @app.route('/purge')
