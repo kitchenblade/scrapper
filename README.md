@@ -20,12 +20,20 @@ for linux
 pip intstall -r requirements
 ```
 
-Write the worker task with the decorator @task
-Import the worker to your application
+
+
+> Write the worker task with the decorator @task
+> Import the worker to your application
+
+- For monitoring processes in Browser
+
 ```sh
-pip install wheel flower == for monitoring processes in Browser
+pip install wheel flower
 ```
-#START WORKER WITH ONE OF COMMANDS BELOW
+
+
+# START WORKER WITH ONE OF COMMANDS BELOW
+
 ```sh
 celery worker --app=app.app --pool=eventlet --loglevel=INFO
 celery worker --app=app.celery --pool=eventlet --loglevel=INFO
@@ -34,7 +42,16 @@ celery worker --app=app.app --pool=solo --loglevel=INFO
 celery worker -A app.celery --pool=solo --loglevel=INFO
 ```
 
+current working command
+
+```sh
+celery worker --app=app.celery --pool=eventlet --loglevel=INFO -c 10
+```
+
+
+
 # START FLOWER FOR MONITORING
+
 ```sh
 celery -A app.celery flower --port=5555
 
