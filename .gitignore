@@ -1,3 +1,4 @@
 pic/
 config.json
 celery-windows/
+scrapper-env/
