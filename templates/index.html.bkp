@@ -85,12 +85,8 @@
                             <input type="password" class="form-control" name="txtPassword" value="{{page_data[0].txtPassword}}">
                         </div>
                         <div class="form-group">
-                            <label>Path for input PDFs</label>
+                            <label>Path for PDFs</label>
                             <input type="text" class="form-control" name="txtPath" value="{{page_data[0].txtPath}}">
-                        </div>
-                        <div class="form-group">
-                            <label>Path for output PDFs</label>
-                            <input type="text" class="form-control" name="txtOutPath" value="{{page_data[0].txtOutPath}}">
                         </div>
 
                         <div class="form-group">

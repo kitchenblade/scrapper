@@ -510,7 +510,7 @@ def progress():
             can.drawString( x+3, y-15, "VOTER ID: " + str(voter_id))
             can.drawString( x+3, y-30, "MS: __ EYOB: __ __ __ __")
             # can.setFillColorRGB(237, 243, 252)   
-            can.drawString( x+3, y-45, "LOE: __, SEX: __ ")
+            can.drawString( x+3, y-45, "LOE: __, SEX: __ , RE: __")
             can.drawString( x+3, y-60, "OCC: __ __ __ __, PA: __")
             can.drawString( x+3, y-75, "LS: __ __ __,__ __ __,__ __ __")
             can.drawString( x+3, y-90,  "P1: __ __ __  __ __ __  __ __ __ __")
