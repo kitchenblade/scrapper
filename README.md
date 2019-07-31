@@ -34,7 +34,7 @@ celery worker --app=app.app --pool=solo --loglevel=INFO
 celery worker -A app.celery --pool=solo --loglevel=INFO
 ```
 
-#START FLOWER FOR MONITORING
+# START FLOWER FOR MONITORING
 ```sh
 celery -A app.celery flower --port=5555
 
