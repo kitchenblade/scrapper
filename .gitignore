@@ -2,3 +2,4 @@ pic/
 config.json
 celery-windows/
 scrapper-env/
+!static/pics/*.jpg
