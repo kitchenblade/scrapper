@@ -9,10 +9,17 @@ from multiprocessing import Pool
 from werkzeug.datastructures import FileStorage
 import requests, threading, time, pprint, string
 
+# from reportlab.pdfgen import canvas
+# from reportlab.lib.pagesizes import letter
+# from reportlab.lib.utils import ImageReader
+# from reportlab.lib import colors
+
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.utils import ImageReader
+from reportlab.platypus import Table, TableStyle
 from reportlab.lib import colors
+from reportlab.rl_config import defaultPageSize
 
 from celery import Celery
 
@@ -22,7 +29,7 @@ from pprint import pprint
 data_to_db = []
 page_data    = []
 job_state = False
-
+scripts = ""
 UPLOAD_PATH = 'static/pics'
 ALLOWED_EXTENSIONS = set(['pdf', 'jpg'])
 
@@ -79,6 +86,18 @@ def allowed_file(filename):
 
 def loadMain():
     conf = getConfig()
+    scripts="""$(document).ready(function() {                
+            var table =  $('#jobs_table').DataTable( {
+                'processing': true,
+                'serverSide': true,
+                'ajax': 'jobs',
+                'type':'POST'
+            });                            
+            setInterval( function () {
+                table.ajax.reload( null, false ); // user paging is not reset on reload
+            }, 10000 );
+        });"""
+    # page_data.append(scripts)
     if conf:
         pass
         page_data.append(config)
@@ -88,7 +107,7 @@ def loadMain():
         # page_data.append(cursor.fetchall())  
     else :
         page_data.append([]) 
-    return render_template('index.html', page_data=page_data)
+    return render_template('index.html', page_data=page_data, scripts=scripts)
 
 def photo_disp(val):
     return '<img src="../static/pics/'+str(val)+'" alt="image" width="50" />'
