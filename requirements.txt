@@ -12,7 +12,6 @@ chardet==3.0.4
 Click==7.0
 configobj==5.0.6
 decorator==4.4.0
-Django==2.2
 dnspython==1.16.0
 docutils==0.14
 eventlet==0.24.1
