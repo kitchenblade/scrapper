@@ -46,7 +46,6 @@ prov==1.5.3
 pycodestyle==2.5.0
 PyInstaller==3.4
 pyparsing==2.4.0
-PyPDF2==1.25.1
 pypiwin32==223
 python-daemon==2.2.3
 python-dateutil==2.8.0

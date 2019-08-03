@@ -21,6 +21,8 @@ from reportlab.lib.utils import ImageReader
 from reportlab.platypus import Table, TableStyle
 from reportlab.lib import colors
 from reportlab.rl_config import defaultPageSize
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 
 from celery import Celery
 
@@ -110,7 +112,11 @@ def loadMain():
         # page_data.append(cursor.fetchall())  
     else :
         page_data.append([]) 
-    return render_template('jobs.html', page_data=page_data, scripts=scripts)
+
+    cursor = database.cursor()
+    cursor.execute("SELECT `pol_code` FROM `info`")
+    pol_codes = cursor.fetchall()
+    return render_template('jobs.html', page_data=page_data, pol_codes=pol_codes, scripts=scripts)
 
 @app.route('/dashboard')
 def dashboard():
@@ -520,14 +526,20 @@ def getdataajax():
     ]
     return json.dumps(run_queries(table,columns))
 
-@app.route('/progress')
+@app.route('/progress', methods=['GET', 'POST'])
 def progress():
-    def printPage():
+    pol_selected = request.form.get('pol_code_select')
+    pdfmetrics.registerFont(TTFont('Vera', 'Vera.ttf'))
+    pdfmetrics.registerFont(TTFont('VeraBd', 'VeraBd.ttf'))
+    pdfmetrics.registerFont(TTFont('VeraIt', 'VeraIt.ttf'))
+    pdfmetrics.registerFont(TTFont('VeraBI', 'VeraBI.ttf'))
+    def printPage(pol_selected):
+        polc = pol_selected
         cursor = database.cursor()
-        cursor.execute("SELECT `pol_code`, `pol_name`, `constituency`, `district`, `region` FROM `info` WHERE `pol_code` ='C061201A'")
+        cursor.execute("SELECT `pol_code`, `pol_name`, `constituency`, `district`, `region` FROM `info` WHERE `pol_code` = %s", (str(polc),))
         datainfo = cursor.fetchall()
         database.commit()
-        cursor.execute("SELECT id, name, picture FROM `candidates`  WHERE `pol_station_code` = 'C061201A'")
+        cursor.execute("SELECT id, name, picture FROM `candidates`  WHERE `pol_station_code` = %s", (str(polc),))
         # SELECT * FROM `candidates` WHERE `pol_station_code` = 'C061201A' 
         data = cursor.fetchall()
         database.commit()
@@ -548,6 +560,7 @@ def progress():
             "stationno":str(datainfo[0][0]).upper()
             # `pol_code`, `pol_name`, `constituency`, `district`, `region`
         }
+
         can = canvas.Canvas(bookDetails["stationno"]+".pdf")
         PAGE_HEIGHT=defaultPageSize[1]; PAGE_WIDTH=defaultPageSize[0]
         path_to_pic = 'static/pics/'
@@ -555,44 +568,45 @@ def progress():
             os.makedirs(path_to_pic)
         
         can.setProducer("Creator")
-        can.setFont("Helvetica-Bold", 25)
+        can.setFont("VeraBd", 25)
         can.drawCentredString(PAGE_WIDTH/2, 780, str(bookDetails["title"]))
         # logo 
-        # logo = ImageReader("logo.jpg")
-        # can.drawImage(logo, (PAGE_WIDTH/2)-75, 550, width=150, height=150)
+        logo = ImageReader("static/logo.jpg")
+        can.drawImage(logo, (PAGE_WIDTH/2)-75, 550, width=150, height=150)
         # Region 
-        can.setFont("Helvetica-Bold", 20)
+        can.setFont("VeraBd", 18)
         can.drawCentredString(PAGE_WIDTH/2, 460, "REGION : ")
-        can.setFont("Helvetica", 20)
+        can.setFont("Vera", 18)
         can.drawCentredString(PAGE_WIDTH/2, 440, str(bookDetails["region"]))
         # District 
-        can.setFont("Helvetica-Bold", 20)
+        can.setFont("VeraBd", 18)
         can.drawCentredString(PAGE_WIDTH/2, 400, "DISTRICT : ")
-        can.setFont("Helvetica", 20)
+        can.setFont("Vera", 18)
         can.drawCentredString(PAGE_WIDTH/2, 380, str(bookDetails["district"]))
         # Constituency 
-        can.setFont("Helvetica-Bold", 20)
+        can.setFont("VeraBd", 18)
         can.drawCentredString(PAGE_WIDTH/2, 340, "CONSTITUENCY : ")
-        can.setFont("Helvetica", 20)
+        can.setFont("Vera", 18)
         can.drawCentredString(PAGE_WIDTH/2, 320, str(bookDetails["constituency"]))
         # Polling station name 
-        can.setFont("Helvetica-Bold", 20)
+        can.setFont("VeraBd", 18)
         can.drawCentredString(PAGE_WIDTH/2, 280, "STATION NAME : ")
-        can.setFont("Helvetica", 20)
+        can.setFont("Vera", 18)
         can.drawCentredString(PAGE_WIDTH/2, 260, str(bookDetails["stationname"]))
         # polling station code
-        can.setFont("Helvetica-Bold", 20)
+        can.setFont("VeraBd", 18)
         can.drawCentredString(PAGE_WIDTH/2, 220, "STATION CODE : ")
-        can.setFont("Helvetica", 20)
+        can.setFont("Vera", 18)
         can.drawCentredString(PAGE_WIDTH/2, 200, str(bookDetails["stationno"]))
         # Total records 
-        can.setFont("Helvetica-Bold", 20)
+        can.setFont("VeraBd", 18)
         can.drawCentredString(PAGE_WIDTH/2, 160, "TOTAL RECORDS : "+str(totalRecords))
-        # can.drawString( 20, 720, )
+        # can.drawString( 18, 720, )
         can.showPage()
         # inner pages
         def drawCard(x, y, voter_id, name, picture):
             # can.roundRect(15, 625, 250, 125, 4, stroke=1, fill=0)
+            can.setFont("Vera", 12)
             passport = ImageReader(picture)
             can.drawImage(passport, x+199, y-108, width=80, height=100)
             can.drawString( x+3, y-2, "NAME: " + str(name))
@@ -635,15 +649,15 @@ def progress():
             # pgNumber = can.getPageNumber()
             can.line(0,780,PAGE_WIDTH,781)
             head = str(bookDetails["stationname"])+" - "+str(bookDetails["stationno"])
-            can.drawString(20, 820, str(bookDetails["title"]).upper())
-            can.drawString(20, 805, bookDetails["region"].upper()+", "+str(bookDetails["district"])+", "+str(bookDetails["constituency"])) 
-            can.drawString(20, 790, head.upper())
+            can.drawString(18, 820, str(bookDetails["title"]).upper())
+            can.drawString(18, 805, bookDetails["region"].upper()+", "+str(bookDetails["district"])+", "+str(bookDetails["constituency"])) 
+            can.drawString(18, 790, head.upper())
 
             can.line(0,50,PAGE_WIDTH,51)
             can.drawString(500, 30, "Page "+str(can.getPageNumber()-1)+" of "+str(totalPages))
             can.showPage()
         can.save()
-    return Response(printPage(), mimetype= 'text/plain')
+    return Response(printPage(pol_selected), mimetype= 'text/plain')
 
 @app.route('/processfiles')
 def processfiles():
