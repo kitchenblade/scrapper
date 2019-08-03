@@ -99,32 +99,3 @@
                 </div>
             </div>
         </div>
-        <!-- content block -->
-        
-        {% block content %}{% endblock %}
-        
-        <!-- end content block -->
-</div>
-</div>
-          
-        <footer class="my-5 pt-5 text-muted text-center text-small">
-            <p class="mb-1">&copy; 2019</p>
-        </footer>
-    <!-- </div> -->
-    <script type="text/javascript" src="{{url_for('static', filename='js/jquery-3.3.1.min.js') }}"></script>
-    <script type="text/javascript" src="{{url_for('static', filename = 'js/bootstrap.bundle.min.js')}}"></script>
-    <script type="text/javascript" src="{{url_for('static', filename = 'js/datatables.min.js')}}"></script>
-    <script type="text/javascript" src="{{url_for('static', filename = 'js/jquery.dataTables.min.js')}}"></script>
-    <script type="text/javascript" src="{{url_for('static', filename = 'js/dataTables.bootstrap.min.js')}}"></script>
-    <script type="text/javascript" src="{{url_for('static', filename = 'js/dataTables.buttons.min.js')}}"></script>
-    <script type="text/javascript" src="{{url_for('static', filename = 'js/buttons.flash.min.js')}}"></script>
-    <script type="text/javascript" src="{{url_for('static', filename = 'js/jszip.min.js')}}"></script>
-    <script type="text/javascript" src="{{url_for('static', filename = 'js/pdfmake.min.js')}}"></script>
-    <script type="text/javascript" src="{{url_for('static', filename = 'js/vfs_fonts.js')}}"></script>
-    <script type="text/javascript" src="{{url_for('static', filename = 'js/buttons.html5.min.js')}}"></script>
-    <script type="text/javascript" src="{{url_for('static', filename = 'js/buttons.print.min.js')}}"></script>
-    <!-- scripts -->
-    <script type="text/javascript">
-        {{scripts|safe}}
-    </script>
-</html>

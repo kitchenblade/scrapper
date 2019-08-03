@@ -3,7 +3,8 @@ from __future__ import print_function
 from flask import Flask, render_template, request, redirect, url_for, flash, Response, send_file, send_from_directory
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
-import os, re, time, sys
+import os, os.path, re, time, sys, glob
+
 import PyPDF2, json, mysql.connector
 from multiprocessing import Pool
 from werkzeug.datastructures import FileStorage
@@ -29,7 +30,9 @@ from pprint import pprint
 data_to_db = []
 page_data    = []
 job_state = False
+global scripts
 scripts = ""
+global css
 UPLOAD_PATH = 'static/pics'
 ALLOWED_EXTENSIONS = set(['pdf', 'jpg'])
 
@@ -107,7 +110,59 @@ def loadMain():
         # page_data.append(cursor.fetchall())  
     else :
         page_data.append([]) 
-    return render_template('index.html', page_data=page_data, scripts=scripts)
+    return render_template('jobs.html', page_data=page_data, scripts=scripts)
+
+@app.route('/dashboard')
+def dashboard():
+    css="""
+  .tile {
+  width: 100%;
+  display: inline-block;
+  box-sizing: border-box;
+  background: #fff;
+  padding: 20px;
+  margin-bottom: 30px;
+}
+
+.tile .title {
+  margin-top: 0px;
+}
+.tile.purple, .tile.blue, .tile.red, .tile.orange, .tile.green, .titlelink {
+  color: #fff;
+}
+.tile.purple {
+  background: #5133ab;
+}
+.tile.purple:hover {
+  background: #3e2784;
+}
+.tile.red {
+  background: #ac193d;
+}
+.tile.red:hover {
+  background: #7f132d;
+}
+.tile.green {
+  background: #00a600;
+}
+.tile.green:hover {
+  background: #007300;
+}
+.tile.blue {
+  background: #2672ec;
+}
+.tile.blue:hover {
+  background: #125acd;
+}
+.tile.orange {
+  background: #dc572e;
+}
+.tile.orange:hover {
+  background: #b8431f;
+}
+
+"""
+    return render_page(template="dashboard.html",page_data=page_data, scripts=scripts, css=css)
 
 def photo_disp(val):
     return '<img src="../static/pics/'+str(val)+'" alt="image" width="50" />'
@@ -356,6 +411,7 @@ def process(jobs):
 # =============== ROUTES ==========================
 @app.route("/", methods=['GET', 'POST'])
 def index():
+    # dashboard
     return loadMain()
 
 @app.route('/config', methods=['POST'])
@@ -385,9 +441,19 @@ def clear_database():
     for sql in open('database.sql'):
         cursor.execute(sql)
         database.commit()
+    filelist = glob.glob(os.path.join(UPLOAD_PATH, "*.jpg"))
+    for f in filelist:
+        os.remove(f)
     # cursor.execute('TRUNCATE TABLE jobs;')
     # database.commit()
     flash('Database cleared')
+    scripts = """
+    window.setTimeout(function () {
+        $(".alert").fadeTo(500, 0).slideUp(500, function () {
+            $(this).remove();
+        });
+    }, 5000);
+    """
     # pprint.pprint(sql)
     return loadMain()
 
@@ -642,6 +708,16 @@ def requestPDF():
     cursor.execute("SELECT * FROM info")
     data = cursor.fetchall()
     return render_template('datapage.html')
+
+def render_page(template, page_data, scripts,css):
+    conf = getConfig()
+    if conf:
+        pass
+        page_data.append(config)
+    else :
+        page_data.append([]) 
+    return render_template(template, page_data=page_data, scripts=scripts, css=css)
+
 
 if __name__ == "__main__":    
     app.run(host='127.0.0.1', port=5000, debug=True)
