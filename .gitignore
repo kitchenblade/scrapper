@@ -4,4 +4,5 @@ celery-windows/
 scrapper-env/
 static/pics/*.jpg
 !static/pics/
-.idea
+!.idea
+!__pycache__
