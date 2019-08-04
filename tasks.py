@@ -111,7 +111,6 @@ def pdf_processor(job):
                             if int(int(obj[4:])-1) >= 0:
                                 picture = id_list[int(obj[4:])-1] + ".jpg"
                                 voter_id = id_list[int(obj[4:])-1]
-                                # name = name_list[int(obj[4:])-1]
                                 name = name_list[int(obj[4:])-1].rsplit('(', 1)[0]
                                 sex = sex_list[int(obj[4:])-1]
                                 age = age_list[int(obj[4:])-1]
@@ -138,14 +137,10 @@ def pdf_processor(job):
             cursor.execute(sql,data)
             database.commit()
 
-            pdfFileObj.close()  # Close the file afterwards
-            # os.remove(src_path) #Delete the file afterwards
+            pdfFileObj.close()
             dst = os.path.join(dst_path, job[1])
             os.rename(src_path, dst) 
-            # shutil.move(src_path, dst)  
-            # dbClose()
-            # return processed_file
-                # Store configuration file values
+        
             print("\n Process Finished.")
             return True
         else:

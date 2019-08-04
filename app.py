@@ -2,6 +2,7 @@
 from __future__ import print_function
 from flask import Flask, render_template, request, redirect, url_for, flash, Response, send_file, send_from_directory
 from flask_cors import CORS
+import json, os
 
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
@@ -286,28 +287,29 @@ def getAllData():
 
 @app.route('/refresh')
 def refreshPath():
-    getConfig()
-    path = config['txtPath']
-    
-    count = 0
-    for filename in os.listdir(path):
-        if  filename.endswith(('.pdf','PDF')):
-            val = ('NULL', filename, '0', '')
-            data_to_db.append(val)
-            count += 1
+    with open('config.json') as data:
+        config = json.load(data)
+        path = config['txtPath']
+        
+        count = 0
+        for filename in os.listdir(path):
+            if  filename.endswith(('.pdf','PDF')):
+                val = ('NULL', filename, '0', '')
+                data_to_db.append(val)
+                count += 1
 
-    if count > 0:
-        # database()
-        try:
-            cursor= database.cursor()
-            sql = "INSERT IGNORE INTO jobs (id, file_name, status, notes) VALUES (%s, %s, %s, %s)"
-            cursor.executemany(sql, data_to_db)
-            database.commit()
-            flash('job list refreshed.')
-        except Exception as e:
-            flash("Problem inserting into db: " + str(e))
-    else:
-        flash('No files found.')
+        if count > 0:
+            # database()
+            try:
+                cursor= database.cursor()
+                sql = "INSERT IGNORE INTO jobs (id, file_name, status, notes) VALUES (%s, %s, %s, %s)"
+                cursor.executemany(sql, data_to_db)
+                database.commit()
+                flash('job list refreshed.')
+            except Exception as e:
+                flash("Problem inserting into db: " + str(e))
+        else:
+            flash('No files found.')
     return loadMain()
 
 @app.route('/jobs', methods=['GET', 'POST'])
