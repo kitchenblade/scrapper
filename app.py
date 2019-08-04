@@ -2,18 +2,6 @@
 from __future__ import print_function
 from flask import Flask, render_template, request, redirect, url_for, flash, Response, send_file, send_from_directory
 from flask_cors import CORS
-from werkzeug.utils import secure_filename
-import os, os.path, re, time, sys, glob
-
-import PyPDF2, json, mysql.connector
-from multiprocessing import Pool
-from werkzeug.datastructures import FileStorage
-import requests, threading, time, pprint, string
-
-# from reportlab.pdfgen import canvas
-# from reportlab.lib.pagesizes import letter
-# from reportlab.lib.utils import ImageReader
-# from reportlab.lib import colors
 
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
@@ -24,10 +12,11 @@ from reportlab.rl_config import defaultPageSize
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
-from celery import Celery
+from tasks import process, pdf_processor
 
 from flask_debugtoolbar import DebugToolbarExtension
 from pprint import pprint
+from utils import Database
 
 data_to_db = []
 page_data    = []
@@ -39,24 +28,10 @@ UPLOAD_PATH = 'static/pics'
 ALLOWED_EXTENSIONS = set(['pdf', 'jpg'])
 
 app = Flask(__name__)
-app.config['CELERY_BROKER_URL'] = 'pyamqp://guest@localhost//'
-app.config['task_acks_late'] = True
-app.config['worker_prefetch_multiplier'] = 1
-# app.config['BROKER_TRANSPORT_OPTIONS'] = {'visibility_timeout': 3600*10}  # 10 hours
-# app.config['CELERY_RESULT_BACKEND'] = 'rpc://'
-
-celery = Celery(app.name, broker=app.config['CELERY_BROKER_URL'])
-celery.conf.update(app.config)
-
-
 app.config['UPLOAD_PATH'] = UPLOAD_PATH
 app.config['SECRET_KEY'] = 'secret'
-# app.config['task_acks_late'] = True
-# app.config['worker_prefetch_multiplier'] = 1
-# app.config['CORS_HEADERS'] = 'Content-Type'
-CORS(app)
-# cors = CORS(app, resources={r"/jobs": {"origins": "http://127.0.0.1:5000"}})
 
+CORS(app)
 def getConfig():
     global config
     with open('config.json') as json_data_file:
@@ -65,22 +40,10 @@ def getConfig():
             return True
         except:
             return False
-    # print(config)
 
-def database():
-    global database
-    conf = getConfig()
-    if conf:
-        database = mysql.connector.connect(
-            host=config['txtHost'],
-            user=config['txtUser'],
-            password=config['txtPass'],
-            database=config['txtDB']
-        )
-    else:
-        print('no config loaded')
+getConfig()
 
-database()
+database = Database.getInstance()
 
 def dbClose():
     database.close()
@@ -121,53 +84,53 @@ def loadMain():
 @app.route('/dashboard')
 def dashboard():
     css="""
-  .tile {
-  width: 100%;
-  display: inline-block;
-  box-sizing: border-box;
-  background: #fff;
-  padding: 20px;
-  margin-bottom: 30px;
-}
+    .tile {
+    width: 100%;
+    display: inline-block;
+    box-sizing: border-box;
+    background: #fff;
+    padding: 20px;
+    margin-bottom: 30px;
+    }
 
-.tile .title {
-  margin-top: 0px;
-}
-.tile.purple, .tile.blue, .tile.red, .tile.orange, .tile.green, .titlelink {
-  color: #fff;
-}
-.tile.purple {
-  background: #5133ab;
-}
-.tile.purple:hover {
-  background: #3e2784;
-}
-.tile.red {
-  background: #ac193d;
-}
-.tile.red:hover {
-  background: #7f132d;
-}
-.tile.green {
-  background: #00a600;
-}
-.tile.green:hover {
-  background: #007300;
-}
-.tile.blue {
-  background: #2672ec;
-}
-.tile.blue:hover {
-  background: #125acd;
-}
-.tile.orange {
-  background: #dc572e;
-}
-.tile.orange:hover {
-  background: #b8431f;
-}
+    .tile .title {
+    margin-top: 0px;
+    }
+    .tile.purple, .tile.blue, .tile.red, .tile.orange, .tile.green, .titlelink {
+    color: #fff;
+    }
+    .tile.purple {
+    background: #5133ab;
+    }
+    .tile.purple:hover {
+    background: #3e2784;
+    }
+    .tile.red {
+    background: #ac193d;
+    }
+    .tile.red:hover {
+    background: #7f132d;
+    }
+    .tile.green {
+    background: #00a600;
+    }
+    .tile.green:hover {
+    background: #007300;
+    }
+    .tile.blue {
+    background: #2672ec;
+    }
+    .tile.blue:hover {
+    background: #125acd;
+    }
+    .tile.orange {
+    background: #dc572e;
+    }
+    .tile.orange:hover {
+    background: #b8431f;
+    }
 
-"""
+    """
     return render_page(template="dashboard.html",page_data=page_data, scripts=scripts, css=css)
 
 def photo_disp(val):
@@ -264,155 +227,6 @@ def paging():
     if (request.values['start'] != '' ) and (int(request.values['length']) > 0 ):
         pages = ' LIMIT '+request.values['length']+' OFFSET '+request.values['start']
     return str(pages)
-
-# ============= CELERY TASKS ======================
-@celery.task
-def pdf_processor(job):
-    print("\n Process started" )
-    # import os
-    cursor = database.cursor()
-    src_path = os.path.join(config['txtPath'], job[1])
-    exists = os.path.isfile(src_path)
-    if exists:
-        # database()
-        # cursor=database.cursor()
-        data=(2,job[1])
-        sql = """UPDATE jobs SET status = %s WHERE `file_name` =%s"""
-        cursor.execute(sql,data)
-        database.commit()
-        dst_path =config['txtPath']
-        dst_path += '/done'
-        if not os.path.exists(dst_path):
-            os.makedirs(dst_path)
-        
-        pdfFileObj = open(src_path, 'rb')
-
-        pdfReader = PyPDF2.PdfFileReader(pdfFileObj)
-        num_pages = pdfReader.numPages
-        page_number = 0
-        id_list = []
-        name_list = []
-        sex_list = []
-        age_list = []
-        processed_page_to_db = []
-
-        pol_code = ''
-        pol_name = ''
-        constituency = ''
-        region = ''
-        district = ''
-        no_of_voters = ''
-        records_count = 0
-        # Let's flip through the pages
-        while page_number < num_pages:
-            time.sleep(0.3)
-            sys.stdout.write("\r[%d" % page_number + "%]" + "#" * page_number)
-            pageObj = pdfReader.getPage(page_number)
-            texts = pageObj.extractText()
-            words = texts.split(': ')
-
-            # Look for the first page
-            if page_number == 0:
-                words = texts.split(':')
-                pol_code = words[2][:-20]
-                pol_name = words[3][:-12]
-                constituency = words[4][:-8]
-                region = words[6][:-128]
-                district = words[5][:-6]
-                page_number += 1
-                continue
-
-            # Last but one page
-            if page_number == num_pages-2:
-                word = texts.split('=')
-                numbs = re.findall(r'\d+', str(word[1]))
-                no_of_voters = str(numbs[0])
-
-            page_number += 1
-
-            for i in range(len(words)):
-                if 'Age' in words[i]:
-                    voter_id = words[i][:-3]
-                    age = words[i+1][:-3]
-                    sex = words[i+2][0]
-                    if 'Page' in words[i+2]:
-                        name = words[i+2][6:-24]
-                    else:
-                        name = words[i+2][6:-18]
-                    id_list.append(voter_id)
-                    name_list.append(name)
-                    sex_list.append(sex)
-                    age_list.append(age)
-
-            if '/XObject' in pageObj['/Resources']:
-                xObject = pageObj['/Resources']['/XObject'].getObject()
-                for obj in xObject:
-                    if xObject[obj]['/Subtype'] == '/Image':
-                        data = xObject[obj].getData()
-
-                        if int(int(obj[4:])-1) >= 0:
-                            picture = id_list[int(obj[4:])-1] + ".jpg"
-                            voter_id = id_list[int(obj[4:])-1]
-                            # name = name_list[int(obj[4:])-1]
-                            name = name_list[int(obj[4:])-1].rsplit('(', 1)[0]
-                            sex = sex_list[int(obj[4:])-1]
-                            age = age_list[int(obj[4:])-1]
-
-                            dest_path = os.path.join(
-                                UPLOAD_PATH, picture)
-                            img = open(dest_path, "wb")
-                            img.write(data)
-                            img.close()                           
-                            processed_page = (pol_code, voter_id, name, sex, age, picture)
-                            processed_page_to_db.append(processed_page)
-                            records_count += 1
-        sql = "INSERT IGNORE INTO info (pol_code, pol_name, constituency, district, region, count_on_pdf, total_records) VALUES (%s, %s, %s, %s, %s, %s, %s)"
-        val = (pol_code, pol_name, constituency, district, region, no_of_voters, records_count)
-        cursor.execute(sql, val)
-        database.commit()
-
-        sql = "INSERT IGNORE INTO candidates (pol_station_code, id, name, sex, age, picture) VALUES (%s, %s, %s, %s, %s, %s)"
-        cursor.executemany(sql, processed_page_to_db)
-        database.commit()
-
-        data=(3,job[1])
-        sql = """UPDATE jobs SET status = %s WHERE `file_name` =%s"""
-        cursor.execute(sql,data)
-        database.commit()
-
-        pdfFileObj.close()  # Close the file afterwards
-        # os.remove(src_path) #Delete the file afterwards
-        dst = os.path.join(dst_path, job[1])
-        os.rename(src_path, dst) 
-        # shutil.move(src_path, dst)  
-        # dbClose()
-        # return processed_file
-            # Store configuration file values
-        print("\n Process Finished.")
-        return True
-    else:
-        # Keep presets
-        data=(5,job[1])
-        sql = """UPDATE jobs SET status = %s WHERE `file_name` =%s"""
-        cursor.execute(sql,data)
-        database.commit()
-        print("\n File missing.")
-        return False
-
-@celery.task
-def process(jobs):   
-    if len(jobs)==0:
-        print("\n No jobs left to process.")
-    else:
-        cursor = database.cursor()
-        for job in jobs:
-            data=(1,job[1])
-            sql = """UPDATE jobs SET status = %s WHERE `file_name` =%s"""
-            cursor.execute(sql,data)
-            database.commit()
-            # task = pdf_processor.s(job).delay()            
-            task = pdf_processor.delay(job)
-            print(f'Started task: {task}')
 
 # =============== ROUTES ==========================
 @app.route("/", methods=['GET', 'POST'])
