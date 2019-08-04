@@ -10,18 +10,8 @@ celery = Celery('tasks', broker='pyamqp://guest@localhost//')
 celery.conf.task_acks_late= True
 celery.conf.worker_prefetch_multiplier = 1
 
-database = Database.getInstance()
+# database = Database.getInstance()
 
-def getConfig():
-    global config
-    with open('config.json') as json_data_file:
-        try:
-            config = json.load(json_data_file)
-            return True
-        except:
-            return False
-
-getConfig()
 
 UPLOAD_PATH = 'static/pics'
 ALLOWED_EXTENSIONS = set(['pdf', 'jpg'])
@@ -30,6 +20,7 @@ ALLOWED_EXTENSIONS = set(['pdf', 'jpg'])
 def pdf_processor(job):
     with open('config.json') as json_data_file:
         config = json.load(json_data_file)
+        database = Database.getInstance()
         cursor = database.cursor()
         src_path = os.path.join(config['txtPath'], job[1])
         exists = os.path.isfile(src_path)
@@ -177,6 +168,7 @@ def progress():
     pdfmetrics.registerFont(TTFont('VeraBI', 'VeraBI.ttf'))
     def printPage(pol_selected):
         polc = pol_selected
+        database = Database.getInstance()
         cursor = database.cursor()
         cursor.execute("SELECT `pol_code`, `pol_name`, `constituency`, `district`, `region` FROM `info` WHERE `pol_code` = %s", (str(polc),))
         datainfo = cursor.fetchall()
