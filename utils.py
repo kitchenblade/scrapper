@@ -20,7 +20,7 @@ class Database:
                 config = json.load(data)
                 connection = mysql.connector.pooling.MySQLConnectionPool(
                     pool_name = "scrapper_pool",
-                    pool_size = 10,
+                    pool_size = 20,
                     pool_reset_session = True,
                     host = config['txtHost'],
                     user = config['txtUser'],

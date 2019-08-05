@@ -2,7 +2,7 @@
 from __future__ import print_function
 from flask import Flask, render_template, request, redirect, url_for, flash, Response, send_file, send_from_directory
 from flask_cors import CORS
-import json, os
+import json, os, glob
 
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
@@ -494,7 +494,7 @@ def processfiles():
 @app.route('/retryfailed')
 def retryfailed():
     # from celery import app
-    celery.control.purge()
+    # celery.control.purge()
     cursor = database.cursor()
     cursor.execute("UPDATE jobs SET status = 0 WHERE `status` = 2")
     database.commit()

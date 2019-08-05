@@ -12,11 +12,12 @@ celery.conf.worker_prefetch_multiplier = 1
 
 # database = Database.getInstance()
 
-
 UPLOAD_PATH = 'static/pics'
 ALLOWED_EXTENSIONS = set(['pdf', 'jpg'])
 
-@celery.task
+# @celery.task
+# @celery.task(bind=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 5, 'countdown': 2})
+@celery.task(bind=True, autoretry_for=(Exception,), exponential_backoff=2, retry_kwargs={'max_retries': 5}, retry_jitter=False)
 def pdf_processor(job):
     with open('config.json') as json_data_file:
         config = json.load(json_data_file)
@@ -148,7 +149,9 @@ def process(jobs):
     if len(jobs)==0:
         print("\n No jobs left to process.")
     else:
+        database = Database.getInstance()
         cursor = database.cursor()
+        # cursor = database.cursor()
         for job in jobs:
             data=(1,job[1])
             sql = """UPDATE jobs SET status = %s WHERE `file_name` =%s"""
