@@ -1,14 +1,14 @@
           <div class="row">
             <div class="col-sm-4">
               <div class="tile purple">
-                <a class="titlelink" href=""><h3 class="title">PDF processor</h3></a>
+                <a class="titlelink" href="{{ url_for('allparserJobs') }}"><h3 class="title">PDF processor</h3></a>
                 <p>This module processes all new pdf, loaded.</p>
                 <p>100 PDF's left to process.</p>
               </div>
             </div>
             <div class="col-sm-4">
               <div class="tile red">
-                <a class="titlelink" href="#"><h3 class="title">Booklet generator</h3></a>
+                <a class="titlelink" href="{{ url_for('allgenJobs') }}"><h3 class="title">Booklet generator</h3></a>
                 <p>Generate data collection booklet.</p>
                 <p>100 booklets left to generate.</p>
               </div>

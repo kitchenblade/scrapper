@@ -15,9 +15,9 @@ celery.conf.worker_prefetch_multiplier = 1
 UPLOAD_PATH = 'static/pics'
 ALLOWED_EXTENSIONS = set(['pdf', 'jpg'])
 
-# @celery.task
 # @celery.task(bind=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 5, 'countdown': 2})
-@celery.task(bind=True, autoretry_for=(Exception,), exponential_backoff=2, retry_kwargs={'max_retries': 5}, retry_jitter=False)
+# @celery.task(bind=True, autoretry_for=(Exception,), exponential_backoff=2, retry_kwargs={'max_retries': 5}, retry_jitter=False)
+# @celery.task(bind=True)
 def pdf_processor(job):
     with open('config.json') as json_data_file:
         config = json.load(json_data_file)
@@ -25,7 +25,22 @@ def pdf_processor(job):
         cursor = database.cursor()
         src_path = os.path.join(config['txtPath'], job[1])
         exists = os.path.isfile(src_path)
-        if exists:        
+
+        # check if job is being worked on or finished
+        cursor.execute("SELECT * FROM  jobs WHERE `file_name` =%s",job[0])
+        # cursor = conn.cursor(buffered=True)
+        # cursor.execute(sql_Query)
+        record = cursor.fetchone()
+        print(record)
+        if records[2] == 2 :
+            # cannot work
+            print("Job in progress !!!");
+            return False
+        elif records[2] == 3 :
+            # cannot work
+            print("Job already done !!!");
+            return True
+        elif exists:        
             data=(2,job[1])
             sql = """UPDATE jobs SET status = %s WHERE `file_name` =%s"""
             cursor.execute(sql,data)
@@ -136,7 +151,7 @@ def pdf_processor(job):
             print("\n Process Finished.")
             return True
         else:
-            # Keep presets
+            # Keep presets file missing
             data=(5,job[1])
             sql = """UPDATE jobs SET status = %s WHERE `file_name` =%s"""
             cursor.execute(sql,data)
@@ -160,7 +175,6 @@ def process(jobs):
             # task = pdf_processor.s(job).delay()            
             task = pdf_processor.delay(job)
             print(f'Started task: {task}')
-
 
 @celery.task
 def progress():

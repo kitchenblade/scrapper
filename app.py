@@ -43,8 +43,9 @@ def getConfig():
             return False
 
 getConfig()
-
+global cursor, database
 database = Database.getInstance()
+cursor = database.cursor()
 
 def dbClose():
     database.close()
@@ -55,7 +56,9 @@ def allowed_file(filename):
 
 def loadMain():
     conf = getConfig()
-    scripts="""$(document).ready(function() {                
+    scripts="""
+    <script type="text/javascript">
+    $(document).ready(function() {                
             var table =  $('#jobs_table').DataTable( {
                 'processing': true,
                 'serverSide': true,
@@ -65,15 +68,13 @@ def loadMain():
             setInterval( function () {
                 table.ajax.reload( null, false ); // user paging is not reset on reload
             }, 10000 );
-        });"""
+        });
+    </script>
+        """
     # page_data.append(scripts)
     if conf:
         pass
         page_data.append(config)
-        # pprint(page_data)
-        # cursor = database.cursor()
-        # cursor.execute("SELECT * FROM jobs")
-        # page_data.append(cursor.fetchall())  
     else :
         page_data.append([]) 
 
@@ -82,9 +83,98 @@ def loadMain():
     pol_codes = cursor.fetchall()
     return render_template('jobs.html', page_data=page_data, pol_codes=pol_codes, scripts=scripts)
 
+@app.route('/parser')
+def allparserJobs():
+    conf = getConfig()
+    scripts="""<script type="text/javascript">
+    $(document).ready(function() {                
+            var table =  $('#jobs_table').DataTable( {
+                'processing': true,
+                'serverSide': true,
+                'ajax': 'jobs',
+                'type':'POST'
+            });                            
+            setInterval( function () {
+                table.ajax.reload( null, false ); // user paging is not reset on reload
+            }, 10000 );
+            $("div.dataTables_length").append('<strong class="pull-right">PDF Processor Jobs.</strong>');
+        });
+    </script>
+        """
+    # page_data.append(scripts)
+    if conf:
+        pass
+        page_data.append(config)
+    else :
+        page_data.append([]) 
+    cursor = database.cursor()
+    cursor.execute("SELECT `pol_code` FROM `info`")
+    pol_codes = cursor.fetchall()
+    return render_template('jobs.html', page_data=page_data, pol_codes=pol_codes, scripts=scripts)
+
+@app.route('/generator')
+def allgenJobs():
+    conf = getConfig()
+    scripts="""
+    <script src="static/js/select2.full.min.js"></script>
+    <script type="text/javascript">
+    $(document).ready(function() {                
+            var table =  $('#jobs_table').DataTable( {
+                'processing': true,
+                'serverSide': true,
+                'ajax': 'jobs',
+                'type':'POST'
+            });                            
+            setInterval( function () {
+                table.ajax.reload( null, false ); // user paging is not reset on reload
+            }, 10000 );
+            $("div.dataTables_length").append('<strong class="pull-right">Booklet generator Jobs.</strong>');
+            $("div.dataTables_filter").prepend('<button type="button" class="btn btn-primary" data-toggle="modal" data-target="#myModal">New jobs</button>');
+             $.fn.select2.defaults.set("theme", "bootstrap");
+            $('.js-example-basic-multiple').select2();
+        });
+        </script>
+        """
+    css = """
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.8/css/select2.min.css" rel="stylesheet" />
+
+<--     <link href="static/css/select2.css" rel="stylesheet" /> -->
+    
+    <style type="text/css">
+    </style>
+    """
+    # page_data.append(scripts)
+    if conf:
+        pass
+        page_data.append(config)
+    else :
+        page_data.append([]) 
+
+    cursor = database.cursor()
+    cursor.execute("SELECT `pol_code` FROM `info`")
+    pol_codes = cursor.fetchall()
+    
+    cursor.execute("SELECT `region` FROM `info` GROUP BY region")
+    regions = cursor.fetchall()
+    page_data.append(regions)
+
+    cursor.execute("SELECT `district` FROM `info` GROUP BY `district`")
+    districts = cursor.fetchall()
+    page_data.append(districts)
+
+    cursor.execute("SELECT `constituency` FROM `info` GROUP BY `constituency` ")
+    constituencies = cursor.fetchall()
+    page_data.append(constituencies)
+
+    cursor.execute("SELECT `pol_code`, `pol_name` FROM `info`")
+    polling_centers = cursor.fetchall()
+    page_data.append(polling_centers)
+
+    return render_template('genjobs.html', page_data=page_data, pol_codes=pol_codes, scripts=scripts)
+
 @app.route('/dashboard')
 def dashboard():
-    css="""
+    css="""<style>
     .tile {
     width: 100%;
     display: inline-block;
@@ -130,7 +220,7 @@ def dashboard():
     .tile.orange:hover {
     background: #b8431f;
     }
-
+    </style>
     """
     return render_page(template="dashboard.html",page_data=page_data, scripts=scripts, css=css)
 
@@ -151,6 +241,8 @@ def status_button(val):
         return '<button class="btn btn-primary" type="button" disabled><span class="glyphicon glyphicon-refresh" aria-hidden="true"></span> Working</button>'
     elif val==3:
         return '<button class="btn btn-success" type="button" disabled><span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Done &nbsp; &nbsp;</button>'
+    elif val==5:
+        return '<button class="btn btn-warning" type="button" disabled><span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Missing &nbsp;</button>'
     else:
         return '<button class="btn btn-danger" type="button" disabled><span class="glyphicon glyphicon-remove" aria-hidden="true"></span> Unknown</button>'
 
@@ -233,7 +325,7 @@ def paging():
 @app.route("/", methods=['GET', 'POST'])
 def index():
     # dashboard
-    return loadMain()
+    return dashboard()
 
 @app.route('/config', methods=['POST'])
 def db_config():
@@ -268,12 +360,13 @@ def clear_database():
     # cursor.execute('TRUNCATE TABLE jobs;')
     # database.commit()
     flash('Database cleared')
-    scripts = """
+    scripts = """<script type="text/javascript">
     window.setTimeout(function () {
         $(".alert").fadeTo(500, 0).slideUp(500, function () {
             $(this).remove();
         });
     }, 5000);
+    </script>
     """
     # pprint.pprint(sql)
     return loadMain()
@@ -310,7 +403,7 @@ def refreshPath():
                 flash("Problem inserting into db: " + str(e))
         else:
             flash('No files found.')
-    return loadMain()
+    return allparserJobs()
 
 @app.route('/jobs', methods=['GET', 'POST'])
 # @nocache
@@ -489,7 +582,7 @@ def processfiles():
         flash('( '+str(len(jobs))+' ) tasks loaded successfully !!!')
     else :
         flash('No new tasks found !!!')
-    return loadMain()
+    return allparserJobs()
 
 @app.route('/retryfailed')
 def retryfailed():
@@ -507,7 +600,7 @@ def retryfailed():
         flash('( '+str(len(jobs))+' ) tasks reset successfully !!!')
     else :
         flash('No failed tasks found !!!')
-    return loadMain()
+    return allparserJobs()
 
 @app.route('/purge')
 # @celery.task

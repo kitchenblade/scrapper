@@ -45,7 +45,7 @@ celery worker -A app.celery --pool=solo --loglevel=INFO
 current working command
 
 ```sh
-celery worker --app=app.celery --pool=eventlet --loglevel=INFO -c 10
+celery worker --app=tasks.celery --pool=eventlet --loglevel=INFO -c 10
 ```
 
 
@@ -53,7 +53,7 @@ celery worker --app=app.celery --pool=eventlet --loglevel=INFO -c 10
 # START FLOWER FOR MONITORING
 
 ```sh
-celery -A app.celery flower --port=5555
+celery -A tasks.celery flower --port=5555
 
 celery flower -A proj --address=127.0.0.1 --port=5555
 ```
