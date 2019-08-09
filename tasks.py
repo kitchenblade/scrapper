@@ -5,7 +5,7 @@ from werkzeug.utils import secure_filename
 from multiprocessing import Pool
 from werkzeug.datastructures import FileStorage
 import requests, threading, time, pprint, string
-
+from pprint import pprint
 celery = Celery('tasks', broker='pyamqp://guest@localhost//')
 celery.conf.task_acks_late= True
 celery.conf.worker_prefetch_multiplier = 1
@@ -17,7 +17,7 @@ ALLOWED_EXTENSIONS = set(['pdf', 'jpg'])
 
 # @celery.task(bind=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 5, 'countdown': 2})
 # @celery.task(bind=True, autoretry_for=(Exception,), exponential_backoff=2, retry_kwargs={'max_retries': 5}, retry_jitter=False)
-# @celery.task(bind=True)
+@celery.task()
 def pdf_processor(job):
     with open('config.json') as json_data_file:
         config = json.load(json_data_file)
@@ -27,20 +27,23 @@ def pdf_processor(job):
         exists = os.path.isfile(src_path)
 
         # check if job is being worked on or finished
-        cursor.execute("SELECT * FROM  jobs WHERE `file_name` =%s",job[0])
+        cursor.execute("SELECT * FROM  jobs WHERE id = %s",job[0])
         # cursor = conn.cursor(buffered=True)
         # cursor.execute(sql_Query)
         record = cursor.fetchone()
+        database.commit
+        print("record details")
         print(record)
-        if records[2] == 2 :
-            # cannot work
-            print("Job in progress !!!");
-            return False
-        elif records[2] == 3 :
-            # cannot work
-            print("Job already done !!!");
-            return True
-        elif exists:        
+        # if record[2] == 2 :
+        #     # cannot work
+        #     print("Job in progress !!!");
+        #     return False
+        # elif record[2] == 3 :
+        #     # cannot work
+        #     print("Job already done !!!");
+        #     return True
+        # el
+        if exists:        
             data=(2,job[1])
             sql = """UPDATE jobs SET status = %s WHERE `file_name` =%s"""
             cursor.execute(sql,data)
@@ -153,7 +156,7 @@ def pdf_processor(job):
         else:
             # Keep presets file missing
             data=(5,job[1])
-            sql = """UPDATE jobs SET status = %s WHERE `file_name` =%s"""
+            sql = """UPDATE jobs SET status = %s WHERE `file_name` = %s"""
             cursor.execute(sql,data)
             database.commit()
             print("\n File missing.")
@@ -169,7 +172,8 @@ def process(jobs):
         # cursor = database.cursor()
         for job in jobs:
             data=(1,job[1])
-            sql = """UPDATE jobs SET status = %s WHERE `file_name` =%s"""
+            # sql = """UPDATE `jobs` SET `status` = %s WHERE `file_name` = %s """
+            sql = "UPDATE `jobs` SET `status` = '%s' WHERE `jobs`.`file_name` = %s "
             cursor.execute(sql,data)
             database.commit()
             # task = pdf_processor.s(job).delay()            
