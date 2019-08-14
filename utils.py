@@ -25,7 +25,8 @@ class Database:
                     host = config['txtHost'],
                     user = config['txtUser'],
                     password = config['txtPass'],
-                    database = config['txtDB']
+                    database = config['txtDB'],
+                    buffered=True
                 )   
             db = connection.get_connection()
             Database.__instance = db

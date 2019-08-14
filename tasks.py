@@ -5,7 +5,7 @@ from werkzeug.utils import secure_filename
 from multiprocessing import Pool
 from werkzeug.datastructures import FileStorage
 import requests, threading, time, pprint, string
-from pprint import pprint
+# from pprint import pprint
 celery = Celery('tasks', broker='pyamqp://guest@localhost//')
 celery.conf.task_acks_late= True
 celery.conf.worker_prefetch_multiplier = 1
@@ -27,23 +27,23 @@ def pdf_processor(job):
         exists = os.path.isfile(src_path)
 
         # check if job is being worked on or finished
-        cursor.execute("SELECT * FROM  jobs WHERE id = %s",job[0])
+        # jobid = (,)
+        cursor.execute("SELECT * FROM  jobs WHERE id = %(jobid)s",{'jobid': job[0]})
         # cursor = conn.cursor(buffered=True)
         # cursor.execute(sql_Query)
         record = cursor.fetchone()
-        database.commit
-        print("record details")
-        print(record)
-        # if record[2] == 2 :
-        #     # cannot work
-        #     print("Job in progress !!!");
-        #     return False
-        # elif record[2] == 3 :
-        #     # cannot work
-        #     print("Job already done !!!");
-        #     return True
-        # el
-        if exists:        
+        # database.commit
+        # print("record details")
+        # print(record[2])
+        if int(record[2]) == 2 :
+            # cannot work
+            print("Job in progress !!!");
+            return False
+        elif int(record[2]) == 3 :
+            # cannot work
+            print("Job already done !!!");
+            return True
+        elif exists:        
             data=(2,job[1])
             sql = """UPDATE jobs SET status = %s WHERE `file_name` =%s"""
             cursor.execute(sql,data)
