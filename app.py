@@ -43,12 +43,8 @@ def getConfig():
             return False
 
 getConfig()
-global cursor, database
-database = Database.getInstance()
-cursor = database.cursor()
 
-def dbClose():
-    database.close()
+database = Database()
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -78,9 +74,8 @@ def loadMain():
     else :
         page_data.append([]) 
 
-    cursor = database.cursor()
-    cursor.execute("SELECT `pol_code` FROM `info`")
-    pol_codes = cursor.fetchall()
+    database.query("SELECT `pol_code` FROM `info`")
+    pol_codes = database.cursor.fetchall()
     return render_template('jobs.html', page_data=page_data, pol_codes=pol_codes, scripts=scripts)
 
 @app.route('/parser')
@@ -107,9 +102,8 @@ def allparserJobs():
         page_data.append(config)
     else :
         page_data.append([]) 
-    cursor = database.cursor()
-    cursor.execute("SELECT `pol_code` FROM `info`")
-    pol_codes = cursor.fetchall()
+    database.query("SELECT `pol_code` FROM `info`")
+    pol_codes = database.cursor.fetchall()
     return render_template('jobs.html', page_data=page_data, pol_codes=pol_codes, scripts=scripts)
 
 @app.route('/generator')
@@ -150,24 +144,23 @@ def allgenJobs():
     else :
         page_data.append([]) 
 
-    cursor = database.cursor()
-    cursor.execute("SELECT `pol_code` FROM `info`")
-    pol_codes = cursor.fetchall()
+    database.query("SELECT `pol_code` FROM `info`")
+    pol_codes = database.cursor.fetchall()
     
-    cursor.execute("SELECT `region` FROM `info` GROUP BY region")
-    regions = cursor.fetchall()
+    database.query("SELECT `region` FROM `info` GROUP BY region")
+    regions = database.cursor.fetchall()
     page_data.append(regions)
 
-    cursor.execute("SELECT `district` FROM `info` GROUP BY `district`")
-    districts = cursor.fetchall()
+    database.query("SELECT `district` FROM `info` GROUP BY `district`")
+    districts = database.cursor.fetchall()
     page_data.append(districts)
 
-    cursor.execute("SELECT `constituency` FROM `info` GROUP BY `constituency` ")
-    constituencies = cursor.fetchall()
+    database.query("SELECT `constituency` FROM `info` GROUP BY `constituency` ")
+    constituencies = database.cursor.fetchall()
     page_data.append(constituencies)
 
-    cursor.execute("SELECT `pol_code`, `pol_name` FROM `info`")
-    polling_centers = cursor.fetchall()
+    database.query("SELECT `pol_code`, `pol_name` FROM `info`")
+    polling_centers = database.cursor.fetchall()
     page_data.append(polling_centers)
 
     return render_template('genjobs.html', page_data=page_data, pol_codes=pol_codes, scripts=scripts)
@@ -254,13 +247,12 @@ def notes_format(val):
 
 def run_queries(table,columns):
     output = {}
-    mycursor = database.cursor()
-    mycursor.execute("SELECT COUNT(*) from "+table)
-    (db_total,)=mycursor.fetchone()
+    database.query("SELECT COUNT(*) from "+table)
+    (db_total,) = database.cursor.fetchone()
 
     _filter = filtering()
-    mycursor.execute("SELECT COUNT(*) FROM "+table+_filter)
-    (rec_total,)=mycursor.fetchone()
+    database.query("SELECT COUNT(*) FROM "+table+_filter)
+    (rec_total,) = database.cursor.fetchone()
     _paging=paging()
 
     column_names =[]
@@ -273,9 +265,8 @@ def run_queries(table,columns):
     _columns = ', '.join("`{0}`".format(c) for c in column_names)
     _sorting = sorting()
     sql ="SELECT "+_columns+'FROM '+table+_filter+_sorting+_paging
-    mycursor.execute(sql)    
-    result_data = mycursor.fetchall()
-    database.commit()
+    database.query(sql)    
+    result_data = database.cursor.fetchall()
 
     output["draw"] = request.values['draw']
     output["recordsTotal"]= db_total
@@ -349,15 +340,14 @@ def db_config():
 
 @app.route('/dbreset')
 def clear_database():
-    cursor = database.cursor()
     sql = open('config.json')
     for sql in open('database.sql'):
-        cursor.execute(sql)
+        database.query(sql)
         database.commit()
     filelist = glob.glob(os.path.join(UPLOAD_PATH, "*.jpg"))
     for f in filelist:
         os.remove(f)
-    # cursor.execute('TRUNCATE TABLE jobs;')
+    # database.query('TRUNCATE TABLE jobs;')
     # database.commit()
     flash('Database cleared')
     scripts = """<script type="text/javascript">
@@ -374,7 +364,7 @@ def clear_database():
 @app.route('/getdata')
 def getAllData():
     # cursor = database.cursor()
-    # cursor.execute("SELECT * FROM candidates")
+    # database.query("SELECT * FROM candidates")
     # data = cursor.fetchall()
     return render_template('datapage.html')
 
@@ -392,11 +382,9 @@ def refreshPath():
                 count += 1
 
         if count > 0:
-            # database()
             try:
-                cursor= database.cursor()
                 sql = "INSERT IGNORE INTO jobs (id, file_name, status, notes) VALUES (%s, %s, %s, %s)"
-                cursor.executemany(sql, data_to_db)
+                database.cursor.executemany(sql, data_to_db)
                 database.commit()
                 flash('job list refreshed.')
             except Exception as e:
@@ -408,7 +396,6 @@ def refreshPath():
 @app.route('/jobs', methods=['GET', 'POST'])
 # @nocache
 def jobs():
-    mycursor= database.cursor()
     table = "jobs"
     global columns
     columns = [
@@ -422,7 +409,6 @@ def jobs():
 @app.route('/getdataajax', methods=['GET', 'POST'])
 # @nocache
 def getdataajax():
-    mycursor= database.cursor()
     table = "candidates"
     global columns
     columns = [
@@ -444,13 +430,12 @@ def progress():
     pdfmetrics.registerFont(TTFont('VeraBI', 'VeraBI.ttf'))
     def printPage(pol_selected):
         polc = pol_selected
-        cursor = database.cursor()
-        cursor.execute("SELECT `pol_code`, `pol_name`, `constituency`, `district`, `region` FROM `info` WHERE `pol_code` = %s", (str(polc),))
-        datainfo = cursor.fetchall()
+        database.query("SELECT `pol_code`, `pol_name`, `constituency`, `district`, `region` FROM `info` WHERE `pol_code` = %s", (str(polc),))
+        datainfo = database.cursor.fetchall()
         database.commit()
-        cursor.execute("SELECT id, name, picture FROM `candidates`  WHERE `pol_station_code` = %s", (str(polc),))
+        database.query("SELECT id, name, picture FROM `candidates`  WHERE `pol_station_code` = %s", (str(polc),))
         # SELECT * FROM `candidates` WHERE `pol_station_code` = 'C061201A' 
-        data = cursor.fetchall()
+        data = database.cursor.fetchall()
         database.commit()
         # data = data[0:10]
         
@@ -570,12 +555,11 @@ def progress():
 
 @app.route('/processfiles')
 def processfiles():
-    cursor = database.cursor()
-    cursor.execute("UPDATE jobs SET status = 0 WHERE `status` = 1")
+    database.query("UPDATE jobs SET status = 0 WHERE `status` = 1")
     database.commit()
                   
-    cursor.execute("SELECT * FROM `jobs` WHERE status=0")
-    jobs = list(cursor.fetchall())
+    database.query("SELECT * FROM `jobs` WHERE status=0")
+    jobs = list(database.cursor.fetchall())
     database.commit()
     if len(jobs) >0:
         process.delay(jobs)    
@@ -588,12 +572,11 @@ def processfiles():
 def retryfailed():
     # from celery import app
     # celery.control.purge()
-    cursor = database.cursor()
-    cursor.execute("UPDATE jobs SET status = 0 WHERE `status` = 2")
+    database.query("UPDATE jobs SET status = 0 WHERE `status` = 2")
     database.commit()
                   
-    cursor.execute("SELECT * FROM `jobs` WHERE status=0")
-    jobs = list(cursor.fetchall())
+    database.query("SELECT * FROM `jobs` WHERE status=0")
+    jobs = list(database.cursor.fetchall())
     database.commit()
     if len(jobs) >0:
         process.delay(jobs)    
@@ -609,7 +592,7 @@ def purge_queue():
     app.control.purge()
     # from app.celery import app
                   
-    # cursor.execute("SELECT * FROM `jobs` WHERE status=0")
+    # database.query("SELECT * FROM `jobs` WHERE status=0")
     # jobs = list(cursor.fetchall())
     # database.commit()
     # if len(jobs) >0:
@@ -619,17 +602,15 @@ def purge_queue():
     # process.purge()
     # from app.celery import app
     # app.control.purge()
-    cursor = database.cursor()
-    cursor.execute("UPDATE jobs SET status = 0 WHERE `status` = 1")
+    database.query("UPDATE jobs SET status = 0 WHERE `status` = 1")
     database.commit()
     flash('Queue purged !!!')
     return loadMain()
 
 @app.route('/requestPDF')
 def requestPDF():
-    cursor = database.cursor()
-    cursor.execute("SELECT * FROM info")
-    data = cursor.fetchall()
+    database.query("SELECT * FROM info")
+    data = database.cursor.fetchall()
     return render_template('datapage.html')
 
 def render_page(template, page_data, scripts,css):

@@ -5,12 +5,13 @@ from werkzeug.utils import secure_filename
 from multiprocessing import Pool
 from werkzeug.datastructures import FileStorage
 import requests, threading, time, pprint, string
+from utils import Database
 # from pprint import pprint
 celery = Celery('tasks', broker='pyamqp://guest@localhost//')
 celery.conf.task_acks_late= True
 celery.conf.worker_prefetch_multiplier = 1
 
-# database = Database.getInstance()
+database = Database()
 
 UPLOAD_PATH = 'static/pics'
 ALLOWED_EXTENSIONS = set(['pdf', 'jpg'])
@@ -21,32 +22,26 @@ ALLOWED_EXTENSIONS = set(['pdf', 'jpg'])
 def pdf_processor(job):
     with open('config.json') as json_data_file:
         config = json.load(json_data_file)
-        database = Database.getInstance()
-        cursor = database.cursor()
         src_path = os.path.join(config['txtPath'], job[1])
         exists = os.path.isfile(src_path)
 
         # check if job is being worked on or finished
-        # jobid = (,)
-        cursor.execute("SELECT * FROM  jobs WHERE id = %(jobid)s",{'jobid': job[0]})
-        # cursor = conn.cursor(buffered=True)
-        # cursor.execute(sql_Query)
-        record = cursor.fetchone()
-        # database.commit
-        # print("record details")
-        # print(record[2])
+        sql = """SELECT * FROM jobs WHERE id = '%s'"""
+        database.query(sql, (job[0],))
+        record = database.cursor.fetchone()
+
         if int(record[2]) == 2 :
             # cannot work
-            print("Job in progress !!!");
+            print("Job in progress !!!")
             return False
         elif int(record[2]) == 3 :
             # cannot work
-            print("Job already done !!!");
+            print("Job already done !!!")
             return True
         elif exists:        
-            data=(2,job[1])
+            data = (2,job[1])
             sql = """UPDATE jobs SET status = %s WHERE `file_name` =%s"""
-            cursor.execute(sql,data)
+            database.query(sql,data)
             database.commit()
             dst_path =config['txtPath']
             dst_path += '/done'
@@ -135,16 +130,16 @@ def pdf_processor(job):
                                 records_count += 1
             sql = "INSERT IGNORE INTO info (pol_code, pol_name, constituency, district, region, count_on_pdf, total_records) VALUES (%s, %s, %s, %s, %s, %s, %s)"
             val = (pol_code, pol_name, constituency, district, region, no_of_voters, records_count)
-            cursor.execute(sql, val)
+            database.query(sql, val)
             database.commit()
 
             sql = "INSERT IGNORE INTO candidates (pol_station_code, id, name, sex, age, picture) VALUES (%s, %s, %s, %s, %s, %s)"
-            cursor.executemany(sql, processed_page_to_db)
+            database.cursor.executemany(sql, processed_page_to_db)
             database.commit()
 
             data=(3,job[1])
             sql = """UPDATE jobs SET status = %s WHERE `file_name` =%s"""
-            cursor.execute(sql,data)
+            database.query(sql,data)
             database.commit()
 
             pdfFileObj.close()
@@ -157,7 +152,7 @@ def pdf_processor(job):
             # Keep presets file missing
             data=(5,job[1])
             sql = """UPDATE jobs SET status = %s WHERE `file_name` = %s"""
-            cursor.execute(sql,data)
+            database.query(sql,data)
             database.commit()
             print("\n File missing.")
             return False
@@ -167,14 +162,11 @@ def process(jobs):
     if len(jobs)==0:
         print("\n No jobs left to process.")
     else:
-        database = Database.getInstance()
-        cursor = database.cursor()
-        # cursor = database.cursor()
         for job in jobs:
             data=(1,job[1])
             # sql = """UPDATE `jobs` SET `status` = %s WHERE `file_name` = %s """
             sql = "UPDATE `jobs` SET `status` = '%s' WHERE `jobs`.`file_name` = %s "
-            cursor.execute(sql,data)
+            database.query(sql,data)
             database.commit()
             # task = pdf_processor.s(job).delay()            
             task = pdf_processor.delay(job)
@@ -189,14 +181,12 @@ def progress():
     pdfmetrics.registerFont(TTFont('VeraBI', 'VeraBI.ttf'))
     def printPage(pol_selected):
         polc = pol_selected
-        database = Database.getInstance()
-        cursor = database.cursor()
-        cursor.execute("SELECT `pol_code`, `pol_name`, `constituency`, `district`, `region` FROM `info` WHERE `pol_code` = %s", (str(polc),))
-        datainfo = cursor.fetchall()
+        database.query("SELECT `pol_code`, `pol_name`, `constituency`, `district`, `region` FROM `info` WHERE `pol_code` = %s", (str(polc),))
+        datainfo = database.cursor.fetchall()
         database.commit()
-        cursor.execute("SELECT id, name, picture FROM `candidates`  WHERE `pol_station_code` = %s", (str(polc),))
+        database.query("SELECT id, name, picture FROM `candidates`  WHERE `pol_station_code` = %s", (str(polc),))
         # SELECT * FROM `candidates` WHERE `pol_station_code` = 'C061201A' 
-        data = cursor.fetchall()
+        data = database.cursor.fetchall()
         database.commit()
         # data = data[0:10]
         

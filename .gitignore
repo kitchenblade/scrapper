@@ -6,3 +6,4 @@ static/pics/*.jpg
 !static/pics/
 !.idea
 !__pycache__
+.vscode
