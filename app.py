@@ -17,7 +17,28 @@ from tasks import process, pdf_processor
 
 from flask_debugtoolbar import DebugToolbarExtension
 from pprint import pprint
-from utils import Database
+
+
+import mysql.connector
+from mysql.connector import errors
+
+try:
+    print('Connecting to Database...')
+    with open('config.json') as data:
+        config = json.load(data)
+        db = mysql.connector.connect(
+            pool_name = "scrapper_pool2",
+            pool_size = 10,
+            pool_reset_session = True,
+            host = config['txtHost'],
+            user = config['txtUser'],
+            password = config['txtPass'],
+            database = config['txtDB'],
+            buffered=True
+        )
+except errors.PoolError as e:
+    print('Error: connection not established {}'.format(e))
+    db.close()
 
 data_to_db = []
 page_data    = []
@@ -44,13 +65,18 @@ def getConfig():
 
 getConfig()
 
-database = Database()
 
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
 
 def loadMain():
+    try:
+        database = mysql.connector.connect(pool_name='scrapper_pool2')
+    except errors.PoolError as e:
+        print('Error: connection not established {}'.format(e))
+        database.close()
+
     conf = getConfig()
     scripts="""
     <script type="text/javascript">
@@ -74,12 +100,20 @@ def loadMain():
     else :
         page_data.append([]) 
 
-    database.query("SELECT `pol_code` FROM `info`")
-    pol_codes = database.cursor.fetchall()
+    cursor = database.cursor()
+    cursor.execute("SELECT `pol_code` FROM `info`")
+    pol_codes = cursor.fetchall()
+    database.close()
     return render_template('jobs.html', page_data=page_data, pol_codes=pol_codes, scripts=scripts)
 
 @app.route('/parser')
 def allparserJobs():
+    try:
+        database = mysql.connector.connect(pool_name='scrapper_pool2')
+    except errors.PoolError as e:
+        print('Error: connection not established {}'.format(e))
+        database.close()
+
     conf = getConfig()
     scripts="""<script type="text/javascript">
     $(document).ready(function() {                
@@ -102,12 +136,21 @@ def allparserJobs():
         page_data.append(config)
     else :
         page_data.append([]) 
-    database.query("SELECT `pol_code` FROM `info`")
-    pol_codes = database.cursor.fetchall()
+    
+    cursor = database.cursor()
+    cursor.execute("SELECT `pol_code` FROM `info`")
+    pol_codes =cursor.fetchall()
+    database.close()
     return render_template('jobs.html', page_data=page_data, pol_codes=pol_codes, scripts=scripts)
 
 @app.route('/generator')
 def allgenJobs():
+    try:
+        database = mysql.connector.connect(pool_name='scrapper_pool2')
+    except errors.PoolError as e:
+        print('Error: connection not established {}'.format(e))
+        database.close()
+
     conf = getConfig()
     scripts="""
     <script src="static/js/select2.full.min.js"></script>
@@ -144,24 +187,27 @@ def allgenJobs():
     else :
         page_data.append([]) 
 
-    database.query("SELECT `pol_code` FROM `info`")
-    pol_codes = database.cursor.fetchall()
+    cursor = database.cursor()
+    cursor.execute("SELECT `pol_code` FROM `info`")
+    pol_codes = cursor.fetchall()
     
-    database.query("SELECT `region` FROM `info` GROUP BY region")
-    regions = database.cursor.fetchall()
+    cursor.execute("SELECT `region` FROM `info` GROUP BY region")
+    regions = cursor.fetchall()
     page_data.append(regions)
 
-    database.query("SELECT `district` FROM `info` GROUP BY `district`")
-    districts = database.cursor.fetchall()
+    cursor.execute("SELECT `district` FROM `info` GROUP BY `district`")
+    districts = cursor.fetchall()
     page_data.append(districts)
 
-    database.query("SELECT `constituency` FROM `info` GROUP BY `constituency` ")
-    constituencies = database.cursor.fetchall()
+    cursor.execute("SELECT `constituency` FROM `info` GROUP BY `constituency` ")
+    constituencies = cursor.fetchall()
     page_data.append(constituencies)
 
-    database.query("SELECT `pol_code`, `pol_name` FROM `info`")
-    polling_centers = database.cursor.fetchall()
+    cursor.execute("SELECT `pol_code`, `pol_name` FROM `info`")
+    polling_centers = cursor.fetchall()
     page_data.append(polling_centers)
+
+    database.close()
 
     return render_template('genjobs.html', page_data=page_data, pol_codes=pol_codes, scripts=scripts)
 
@@ -246,13 +292,21 @@ def notes_format(val):
         return val
 
 def run_queries(table,columns):
+    try:
+        database = mysql.connector.connect(pool_name='scrapper_pool2')
+    except errors.PoolError as e:
+        print('Error: connection not established {}'.format(e))
+        database.close()
+
     output = {}
-    database.query("SELECT COUNT(*) from "+table)
-    (db_total,) = database.cursor.fetchone()
+
+    cursor = database.cursor()
+    cursor.execute("SELECT COUNT(*) from "+table)
+    (db_total,) = cursor.fetchone()
 
     _filter = filtering()
-    database.query("SELECT COUNT(*) FROM "+table+_filter)
-    (rec_total,) = database.cursor.fetchone()
+    cursor.execute("SELECT COUNT(*) FROM "+table+_filter)
+    (rec_total,) = cursor.fetchone()
     _paging=paging()
 
     column_names =[]
@@ -265,8 +319,8 @@ def run_queries(table,columns):
     _columns = ', '.join("`{0}`".format(c) for c in column_names)
     _sorting = sorting()
     sql ="SELECT "+_columns+'FROM '+table+_filter+_sorting+_paging
-    database.query(sql)    
-    result_data = database.cursor.fetchall()
+    cursor.execute(sql)    
+    result_data = cursor.fetchall()
 
     output["draw"] = request.values['draw']
     output["recordsTotal"]= db_total
@@ -286,6 +340,7 @@ def run_queries(table,columns):
 
         Data_rows.append(Data_row)
     output['data'] = Data_rows
+    database.close()
     return output
 
 def filtering():     
@@ -340,14 +395,21 @@ def db_config():
 
 @app.route('/dbreset')
 def clear_database():
+    try:
+        database = mysql.connector.connect(pool_name='scrapper_pool2')
+    except errors.PoolError as e:
+        print('Error: connection not established {}'.format(e))
+        database.close()
+
     sql = open('config.json')
     for sql in open('database.sql'):
-        database.query(sql)
+        cursor = database.cursor()
+        cursor.execute(sql)
         database.commit()
     filelist = glob.glob(os.path.join(UPLOAD_PATH, "*.jpg"))
     for f in filelist:
         os.remove(f)
-    # database.query('TRUNCATE TABLE jobs;')
+    # database.cursor.execute('TRUNCATE TABLE jobs;')
     # database.commit()
     flash('Database cleared')
     scripts = """<script type="text/javascript">
@@ -358,18 +420,26 @@ def clear_database():
     }, 5000);
     </script>
     """
-    # pprint.pprint(sql)
+    database.close()
     return loadMain()
 
 @app.route('/getdata')
 def getAllData():
     # cursor = database.cursor()
-    # database.query("SELECT * FROM candidates")
+    # database.cursor.execute("SELECT * FROM candidates")
     # data = cursor.fetchall()
     return render_template('datapage.html')
 
 @app.route('/refresh')
 def refreshPath():
+    try:
+        database = mysql.connector.connect(pool_name='scrapper_pool2')
+    except errors.PoolError as e:
+        print('Error: connection not established {}'.format(e))
+        database.close()
+
+    cursor = database.cursor()
+
     with open('config.json') as data:
         config = json.load(data)
         path = config['txtPath']
@@ -384,13 +454,14 @@ def refreshPath():
         if count > 0:
             try:
                 sql = "INSERT IGNORE INTO jobs (id, file_name, status, notes) VALUES (%s, %s, %s, %s)"
-                database.cursor.executemany(sql, data_to_db)
+                cursor.executemany(sql, data_to_db)
                 database.commit()
                 flash('job list refreshed.')
             except Exception as e:
                 flash("Problem inserting into db: " + str(e))
         else:
             flash('No files found.')
+    database.close()
     return allparserJobs()
 
 @app.route('/jobs', methods=['GET', 'POST'])
@@ -421,178 +492,68 @@ def getdataajax():
     ]
     return json.dumps(run_queries(table,columns))
 
-@app.route('/progress', methods=['GET', 'POST'])
-def progress():
-    pol_selected = request.form.get('pol_code_select')
-    pdfmetrics.registerFont(TTFont('Vera', 'Vera.ttf'))
-    pdfmetrics.registerFont(TTFont('VeraBd', 'VeraBd.ttf'))
-    pdfmetrics.registerFont(TTFont('VeraIt', 'VeraIt.ttf'))
-    pdfmetrics.registerFont(TTFont('VeraBI', 'VeraBI.ttf'))
-    def printPage(pol_selected):
-        polc = pol_selected
-        database.query("SELECT `pol_code`, `pol_name`, `constituency`, `district`, `region` FROM `info` WHERE `pol_code` = %s", (str(polc),))
-        datainfo = database.cursor.fetchall()
-        database.commit()
-        database.query("SELECT id, name, picture FROM `candidates`  WHERE `pol_station_code` = %s", (str(polc),))
-        # SELECT * FROM `candidates` WHERE `pol_station_code` = 'C061201A' 
-        data = database.cursor.fetchall()
-        database.commit()
-        # data = data[0:10]
-        
-        totalRecords= len(data)
-        itemsNo=10
-        dataLen=len(data)
-        totalPages=(dataLen//itemsNo)
-        if(dataLen%itemsNo!=0):
-            totalPages+=1
-        bookDetails =  {
-            "title":"PARTY DATA COLLECTION BOOKLET",
-            "region":str(datainfo[0][4]).upper(),
-            "district":str(datainfo[0][3]).upper(),
-            "constituency":str(datainfo[0][2]).upper(),
-            "stationname":str(datainfo[0][1]).upper(),
-            "stationno":str(datainfo[0][0]).upper()
-            # `pol_code`, `pol_name`, `constituency`, `district`, `region`
-        }
-
-        can = canvas.Canvas(bookDetails["stationno"]+".pdf")
-        PAGE_HEIGHT=defaultPageSize[1]; PAGE_WIDTH=defaultPageSize[0]
-        path_to_pic = 'static/pics/'
-        if not os.path.exists(path_to_pic):
-            os.makedirs(path_to_pic)
-        
-        can.setProducer("Creator")
-        can.setFont("VeraBd", 25)
-        can.drawCentredString(PAGE_WIDTH/2, 780, str(bookDetails["title"]))
-        # logo 
-        logo = ImageReader("static/logo.jpg")
-        can.drawImage(logo, (PAGE_WIDTH/2)-75, 550, width=150, height=150)
-        # Region 
-        can.setFont("VeraBd", 18)
-        can.drawCentredString(PAGE_WIDTH/2, 460, "REGION : ")
-        can.setFont("Vera", 18)
-        can.drawCentredString(PAGE_WIDTH/2, 440, str(bookDetails["region"]))
-        # District 
-        can.setFont("VeraBd", 18)
-        can.drawCentredString(PAGE_WIDTH/2, 400, "DISTRICT : ")
-        can.setFont("Vera", 18)
-        can.drawCentredString(PAGE_WIDTH/2, 380, str(bookDetails["district"]))
-        # Constituency 
-        can.setFont("VeraBd", 18)
-        can.drawCentredString(PAGE_WIDTH/2, 340, "CONSTITUENCY : ")
-        can.setFont("Vera", 18)
-        can.drawCentredString(PAGE_WIDTH/2, 320, str(bookDetails["constituency"]))
-        # Polling station name 
-        can.setFont("VeraBd", 18)
-        can.drawCentredString(PAGE_WIDTH/2, 280, "STATION NAME : ")
-        can.setFont("Vera", 18)
-        can.drawCentredString(PAGE_WIDTH/2, 260, str(bookDetails["stationname"]))
-        # polling station code
-        can.setFont("VeraBd", 18)
-        can.drawCentredString(PAGE_WIDTH/2, 220, "STATION CODE : ")
-        can.setFont("Vera", 18)
-        can.drawCentredString(PAGE_WIDTH/2, 200, str(bookDetails["stationno"]))
-        # Total records 
-        can.setFont("VeraBd", 18)
-        can.drawCentredString(PAGE_WIDTH/2, 160, "TOTAL RECORDS : "+str(totalRecords))
-        # can.drawString( 18, 720, )
-        can.showPage()
-        # inner pages
-        def drawCard(x, y, voter_id, name, picture):
-            # can.roundRect(15, 625, 250, 125, 4, stroke=1, fill=0)
-            can.setFont("Vera", 12)
-            passport = ImageReader(picture)
-            can.drawImage(passport, x+199, y-108, width=80, height=100)
-            can.drawString( x+3, y-2, "NAME: " + str(name))
-            can.drawString( x+3, y-15, "VOTER ID: " + str(voter_id))
-            can.drawString( x+3, y-30, "MS: __ EYOB: __ __ __ __")
-            # can.setFillColorRGB(237, 243, 252)   
-            can.drawString( x+3, y-45, "LOE: __, SEX: __ , RE: __")
-            can.drawString( x+3, y-60, "OCC: __ __ __ __, PA: __")
-            can.drawString( x+3, y-75, "LS: __ __ __,__ __ __,__ __ __")
-            can.drawString( x+3, y-90,  "P1: __ __ __  __ __ __  __ __ __ __")
-            can.drawString( x+3, y-105, "P2: __ __ __  __ __ __  __ __ __ __")
-            can.drawString( x+3, y-120, "P3: __ __ __  __ __ __  __ __ __ __")
-            # can.roundRect(x-5, y-160, wdth, height, 4, stroke=1, fill=0)    
-            can.roundRect(x, y-125, 283, 140, 4, stroke=1, fill=0)
-            # can.rect(x+22, y-32, 10, 10, fill=1)
-            # can.rect(15, 625, 250, 125, 4, stroke=1, fill=0)
-
-        for i in range(0, totalRecords, 10):
-            if i < totalRecords:
-                drawCard(10, 760, data[i][0], data[i][1], path_to_pic + str(data[i][2]))
-            if i + 1 < totalRecords :
-                drawCard(300, 760,  data[i+1][0], data[i+1][1], path_to_pic + str(data[i+1][2]))
-            if i + 2 < totalRecords:
-                drawCard(10, 615,  data[i+2][0], data[i+2][1], path_to_pic + str(data[i+2][2]))
-            if i + 3 < totalRecords:
-                drawCard(300, 615,  data[i+3][0], data[i+3][1], path_to_pic + str(data[i+3][2]))
-            if i + 4 < totalRecords:
-                drawCard(10, 470,  data[i+4][0], data[i+4][1], path_to_pic + str(data[i+4][2]))
-            if i + 5 < totalRecords:
-                drawCard(300, 470,  data[i+5][0], data[i+5][1], path_to_pic + str(data[i+5][2]))
-            if i + 6 < totalRecords:
-                drawCard(10, 325,  data[i+6][0], data[i+6][1], path_to_pic + str(data[i+6][2]))
-            if i + 7 < totalRecords:
-                drawCard(300, 325,  data[i+7][0], data[i+7][1], path_to_pic + str(data[i+7][2]))
-            if i + 8 < totalRecords:
-                drawCard(10, 180,  data[i+8][0], data[i+8][1], path_to_pic + str(data[i+8][2]))
-            if i + 9 < totalRecords:
-                drawCard(300, 180,  data[i+9][0], data[i+9][1], path_to_pic + str(data[i+9][2]))
-            yield str(i) + " "
-            # pgNumber = can.getPageNumber()
-            can.line(0,780,PAGE_WIDTH,781)
-            head = str(bookDetails["stationname"])+" - "+str(bookDetails["stationno"])
-            can.drawString(18, 820, str(bookDetails["title"]).upper())
-            can.drawString(18, 805, bookDetails["region"].upper()+", "+str(bookDetails["district"])+", "+str(bookDetails["constituency"])) 
-            can.drawString(18, 790, head.upper())
-
-            can.line(0,50,PAGE_WIDTH,51)
-            can.drawString(500, 30, "Page "+str(can.getPageNumber()-1)+" of "+str(totalPages))
-            can.showPage()
-        can.save()
-    return Response(printPage(pol_selected), mimetype= 'text/plain')
 
 @app.route('/processfiles')
 def processfiles():
-    database.query("UPDATE jobs SET status = 0 WHERE `status` = 1")
+    try:
+        database = mysql.connector.connect(pool_name='scrapper_pool2')
+    except errors.PoolError as e:
+        print('Error: connection not established {}'.format(e))
+        database.close()
+
+    cursor = database.cursor()
+    cursor.execute("UPDATE jobs SET status = 0 WHERE `status` = 1")
     database.commit()
                   
-    database.query("SELECT * FROM `jobs` WHERE status=0")
-    jobs = list(database.cursor.fetchall())
+    cursor.execute("SELECT * FROM `jobs` WHERE status=0")
+    jobs = list(cursor.fetchall())
     database.commit()
     if len(jobs) >0:
         process.delay(jobs)    
         flash('( '+str(len(jobs))+' ) tasks loaded successfully !!!')
     else :
         flash('No new tasks found !!!')
+    database.close()
     return allparserJobs()
 
 @app.route('/retryfailed')
 def retryfailed():
+    try:
+        database = mysql.connector.connect(pool_name='scrapper_pool2')
+    except errors.PoolError as e:
+        print('Error: connection not established {}'.format(e))
+        database.close()
     # from celery import app
     # celery.control.purge()
-    database.query("UPDATE jobs SET status = 0 WHERE `status` = 2")
+    cursor = database.cursor()
+    cursor.execute("UPDATE jobs SET status = 0 WHERE `status` = 2")
     database.commit()
                   
-    database.query("SELECT * FROM `jobs` WHERE status=0")
-    jobs = list(database.cursor.fetchall())
+    cursor.execute("SELECT * FROM `jobs` WHERE status=0")
+    jobs = list(cursor.fetchall())
     database.commit()
     if len(jobs) >0:
         process.delay(jobs)    
         flash('( '+str(len(jobs))+' ) tasks reset successfully !!!')
     else :
         flash('No failed tasks found !!!')
+    database.close()
     return allparserJobs()
 
 @app.route('/purge')
 # @celery.task
 def purge_queue():
+    try:
+        database = mysql.connector.connect(pool_name='scrapper_pool2')
+    except errors.PoolError as e:
+        print('Error: connection not established {}'.format(e))
+        database.close()
+
     from Celery import app
     app.control.purge()
     # from app.celery import app
                   
-    # database.query("SELECT * FROM `jobs` WHERE status=0")
+    # database.cursor.execute("SELECT * FROM `jobs` WHERE status=0")
     # jobs = list(cursor.fetchall())
     # database.commit()
     # if len(jobs) >0:
@@ -602,15 +563,26 @@ def purge_queue():
     # process.purge()
     # from app.celery import app
     # app.control.purge()
-    database.query("UPDATE jobs SET status = 0 WHERE `status` = 1")
+    cursor = database.cursor()
+    cursor.execute("UPDATE jobs SET status = 0 WHERE `status` = 1")
     database.commit()
     flash('Queue purged !!!')
+    database.close()
     return loadMain()
 
 @app.route('/requestPDF')
 def requestPDF():
-    database.query("SELECT * FROM info")
-    data = database.cursor.fetchall()
+    try:
+        database = mysql.connector.connect(pool_name='scrapper_pool2')
+    except errors.PoolError as e:
+        print('Error: connection not established {}'.format(e))
+        database.close()
+
+    cursor = database.cursor()
+    cursor.execute("SELECT * FROM info")
+    data = cursor.fetchall()
+
+    database.close()
     return render_template('datapage.html')
 
 def render_page(template, page_data, scripts,css):
