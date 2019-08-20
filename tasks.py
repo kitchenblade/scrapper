@@ -1,6 +1,5 @@
 from celery import Celery
 import os, json, PyPDF2, os.path, re, time, sys, glob
-from utils import Database
 from werkzeug.utils import secure_filename
 from multiprocessing import Pool
 from werkzeug.datastructures import FileStorage
@@ -180,7 +179,7 @@ def pdf_processor(job):
         else:
             # Keep presets file missing
             data=(5,job[1])
-            sql = "UPDATE jobs SET status = '%s' WHERE file_name = '%s'"
+            sql = "UPDATE jobs SET status = %s WHERE file_name = %s"
             cursor.execute(sql,data)
             database.commit()
             print("\n File missing.")
