@@ -29,7 +29,7 @@ itsdangerous==1.1.0
 Jinja2==2.10.1
 kombu==4.6.3
 lockfile==0.12.2
-lxml==4.3.3
+lxml==4.6.3
 macholib==1.11
 MarkupSafe==1.1.1
 monotonic==1.5
